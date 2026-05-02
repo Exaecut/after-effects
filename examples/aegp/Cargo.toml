@@ -1,0 +1,20 @@
+[package]
+name = "aegpdemo"
+version = "0.0.1"
+authors = ["mobile-bungalow"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+log = "0.4"
+after-effects = { path = "../../after-effects" }
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+homedir = "0.3.6"
+raw-window-handle = "0.6.2"
+rfd = "0.17.2"
+
+[build-dependencies]
+pipl = { path = "../../pipl" }

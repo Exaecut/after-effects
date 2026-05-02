@@ -118,8 +118,8 @@ impl GpuFilterData {
         if let crate::Param::MemoryPtr(ptr) = ptr {
             if !ptr.is_null() {
                 let serialized = unsafe { std::slice::from_raw_parts(ptr as *mut u8, self.memory_manager_suite.ptr_size(ptr) as _) };
-                if let Ok(t) = bincode::deserialize::<T>(serialized) {
-                    return Ok(t);
+                if let Ok(t) = bincode::serde::decode_from_slice::<T, _>(serialized, bincode::config::legacy()) {
+                    return Ok(t.0);
                 }
             }
         }
@@ -133,12 +133,12 @@ impl GpuFilterData {
 pub trait GpuFilter : Default {
     /// Called once at startup to initialize any global state.
     /// * Note that the instances are created and destroyed many times during the same render,
-    /// so don't rely on `Default` or `Drop` for any global state
+    ///   so don't rely on `Default` or `Drop` for any global state
     fn global_init();
 
     /// Called once at shutdown to clean up any global state.
     /// * Note that the instances are created and destroyed many times during the same render,
-    /// so don't rely on `Default` or `Drop` for any global state
+    ///   so don't rely on `Default` or `Drop` for any global state
     fn global_destroy();
 
     /// Return dependency information about a render, or nothing if only the current frame is required.
@@ -301,7 +301,7 @@ macro_rules! define_gpu_filter {
             }
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         #[allow(non_snake_case)]
         pub unsafe extern "C" fn xGPUFilterEntry(
             host_interface_version: $crate::sys::csSDK_uint32,

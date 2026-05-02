@@ -1,0 +1,19 @@
+[package]
+name = "backgroundtask"
+version = "0.0.1"
+authors = ["mobile-bungalow"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[features]
+default = ["global_refcon"]
+global_refcon = []
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+after-effects = { path = "../../after-effects" }
+
+[build-dependencies]
+pipl = { path = "../../pipl" }

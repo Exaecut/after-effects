@@ -42,14 +42,16 @@ macro_rules! define_iterate {
                 if refcon.is_null() || out_p.is_null() {
                     return ae_sys::PF_Err_BAD_CALLBACK_PARAM as ae_sys::PF_Err;
                 }
-                let cb = &*(refcon as *const Box<Box<dyn Fn(i32, i32, &$pixel, &mut $pixel) -> Result<(), Error>>>);
+                unsafe {
+                    let cb = &*(refcon as *const Box<Box<dyn Fn(i32, i32, &$pixel, &mut $pixel) -> Result<(), Error>>>);
 
-                // If `src` is None, there will be no source pixels, so just use the output pixel in both places to simplify the callback
-                if in_p.is_null() { in_p = out_p; }
+                    // If `src` is None, there will be no source pixels, so just use the output pixel in both places to simplify the callback
+                    if in_p.is_null() { in_p = out_p; }
 
-                match cb(x, y, &*in_p, &mut *out_p) {
-                    Ok(_)  => ae_sys::PF_Err_NONE as _,
-                    Err(e) => e.into(),
+                    match cb(x, y, &*in_p, &mut *out_p) {
+                        Ok(_)  => ae_sys::PF_Err_NONE as _,
+                        Err(e) => e.into(),
+                    }
                 }
             }
             unsafe {
@@ -136,7 +138,7 @@ macro_rules! define_iterate_lut_and_generic {
             F: Fn(i32, i32, i32) -> Result<(), Error>,
         {
             unsafe extern "C" fn iterate_c_fn(refcon: *mut c_void, thread_index: ae_sys::A_long, i: ae_sys::A_long, iterations: ae_sys::A_long) -> ae_sys::PF_Err {
-                let cb = &*(refcon as *const Box<Box<dyn Fn(i32, i32, i32) -> Result<(), Error>>>);
+                let cb = unsafe { &*(refcon as *const Box<Box<dyn Fn(i32, i32, i32) -> Result<(), Error>>>) };
                 match cb(thread_index, i, iterations) {
                     Ok(_)  => ae_sys::PF_Err_NONE as _,
                     Err(e) => e.into(),
@@ -178,9 +180,9 @@ impl UtilCallbacks {
     /// * `dest_x`, `dest_y` - upper left-hand corner of src rect in composite image
     /// * `field` - which scanlines to render ([`Field::Frame`], [`Field::Upper`] or [`Field::Lower`])
     /// * `transfer_mode` - can be [`TransferMode::Copy`], [`TransferMode::Behind`] or [`TransferMode::InFront`]
-    pub fn composite_rect(&self, src_rect: Option<Rect>, src_opacity: i32, src: impl AsPtr<*mut PF_EffectWorld>, dest_x: i32, dest_y: i32, field: Field, transfer_mode: TransferMode, mut dst: impl AsMutPtr<*mut PF_EffectWorld>) -> Result<(), Error> {
+    pub fn composite_rect(&self, src_rect: Option<Rect>, src_opacity: i32, src: impl AsPtr<*const PF_EffectWorld>, dest_x: i32, dest_y: i32, field: Field, transfer_mode: TransferMode, mut dst: impl AsMutPtr<*mut PF_EffectWorld>) -> Result<(), Error> {
         if src.as_ptr().is_null() || dst.as_mut_ptr().is_null() { return Err(Error::BadCallbackParameter); }
-        call_fn!(self, composite_rect, src_rect.map(Into::into).as_mut().map_or(std::ptr::null_mut(), |x| x), src_opacity, src.as_ptr(), dest_x, dest_y, field.into(), transfer_mode.into(), dst.as_mut_ptr())
+        call_fn!(self, composite_rect, src_rect.map(Into::into).as_mut().map_or(std::ptr::null_mut(), |x| x), src_opacity, src.as_ptr() as _, dest_x, dest_y, field.into(), transfer_mode.into(), dst.as_mut_ptr())
     }
 
     /// Blends two images, alpha-weighted. Does not deal with different-sized sources, though the destination may be either `PF_EffectWorld`.
@@ -240,9 +242,9 @@ impl UtilCallbacks {
     /// * `forward` - `true` means convert non-premultiplied to pre-multiplied; `false` means un-pre-multiply.
     ///
     /// To convert between premul and straight pixel buffers where the color channels were matted with a color other than black.
-    pub fn premultiply_color(&self, src: impl AsPtr<*mut PF_EffectWorld>, color: &Pixel8, forward: bool, mut dst: impl AsMutPtr<*mut PF_EffectWorld>) -> Result<(), Error> {
+    pub fn premultiply_color(&self, src: impl AsPtr<*const PF_EffectWorld>, color: &Pixel8, forward: bool, mut dst: impl AsMutPtr<*mut PF_EffectWorld>) -> Result<(), Error> {
         if src.as_ptr().is_null() || dst.as_mut_ptr().is_null() { return Err(Error::BadCallbackParameter); }
-        call_fn!(self, premultiply_color, src.as_ptr(), color, forward as _, dst.as_mut_ptr())
+        call_fn!(self, premultiply_color, src.as_ptr() as _, color, forward as _, dst.as_mut_ptr())
     }
 
     /// Converts to (and from) having r, g, and b color values premultiplied with any color to represent the alpha channel.
@@ -250,9 +252,9 @@ impl UtilCallbacks {
     /// * `forward` - `true` means convert non-premultiplied to pre-multiplied; `false` means un-pre-multiply.
     ///
     /// To convert between premul and straight pixel buffers where the color channels were matted with a color other than black.
-    pub fn premultiply_color16(&self, src: impl AsPtr<*mut PF_EffectWorld>, color: &Pixel16, forward: bool, mut dst: impl AsMutPtr<*mut PF_EffectWorld>) -> Result<(), Error> {
+    pub fn premultiply_color16(&self, src: impl AsPtr<*const PF_EffectWorld>, color: &Pixel16, forward: bool, mut dst: impl AsMutPtr<*mut PF_EffectWorld>) -> Result<(), Error> {
         if src.as_ptr().is_null() || dst.as_mut_ptr().is_null() { return Err(Error::BadCallbackParameter); }
-        call_fn!(self, premultiply_color16, src.as_ptr(), color, forward as _, dst.as_mut_ptr())
+        call_fn!(self, premultiply_color16, src.as_ptr() as _, color, forward as _, dst.as_mut_ptr())
     }
 
     /// Call this routine before you plan to perform a large number of image resamplings.
@@ -690,7 +692,7 @@ impl RawHandle {
     pub fn as_raw(&self) -> ae_sys::PF_Handle {
         self.handle
     }
-    pub fn lock(&self) -> Result<RawHandleLock, Error> {
+    pub fn lock(&self) -> Result<RawHandleLock<'_>, Error> {
         unsafe {
             let lock = (*self.utils_ptr).host_lock_handle.ok_or(Error::BadCallbackParameter)?;
             let ptr = lock(self.handle);

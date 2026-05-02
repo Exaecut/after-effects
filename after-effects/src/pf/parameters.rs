@@ -2,6 +2,10 @@ use super::*;
 use std::ffi::{ CStr, CString };
 use ae_sys::PF_PathID;
 use serde::{de::DeserializeOwned, Serialize};
+#[cfg(target_os = "macos")]
+use objc2_core_foundation::{CFRange, CFString};
+
+const MAX_NAME_LEN: usize = 32;
 
 define_enum! {
     ae_sys::PF_ParamType,
@@ -574,9 +578,9 @@ impl ArbParamsExtra {
                 let mut src_handle = Handle::<T>::from_raw(self.as_ref().u.copy_func_params.src_arbH, false)?;
                 let lock = src_handle.lock()?;
 
-                let serialized = bincode::serialize::<T>(lock.as_ref()?).map_err(|_| Error::InternalStructDamaged)?;
-                let deserialized = bincode::deserialize::<T>(&serialized).map_err(|_| Error::InternalStructDamaged)?;
-                let new_handle = Handle::<T>::new(deserialized)?;
+                let serialized = bincode::serde::encode_to_vec::<&T, _>(lock.as_ref()?, bincode::config::legacy()).map_err(|_| Error::InternalStructDamaged)?;
+                let deserialized = bincode::serde::decode_from_slice::<T, _>(&serialized, bincode::config::legacy()).map_err(|_| Error::InternalStructDamaged)?;
+                let new_handle = Handle::<T>::new(deserialized.0)?;
 
                 self.as_ref()
                     .u
@@ -591,7 +595,7 @@ impl ArbParamsExtra {
                 let mut handle = Handle::<T>::from_raw(self.as_ref().u.flat_size_func_params.arbH, false)?;
                 let lock = handle.lock()?;
 
-                let serialized = bincode::serialize::<T>(lock.as_ref()?).map_err(|_| Error::InternalStructDamaged)?;
+                let serialized = bincode::serde::encode_to_vec::<&T, _>(lock.as_ref()?, bincode::config::legacy()).map_err(|_| Error::InternalStructDamaged)?;
 
                 self.as_ref()
                     .u
@@ -607,7 +611,7 @@ impl ArbParamsExtra {
                 let mut handle = Handle::<T>::from_raw(self.as_ref().u.flatten_func_params.arbH, false)?;
                 let lock = handle.lock()?;
 
-                let serialized = bincode::serialize::<T>(lock.as_ref()?).map_err(|_| Error::InternalStructDamaged)?;
+                let serialized = bincode::serde::encode_to_vec::<&T, _>(lock.as_ref()?, bincode::config::legacy()).map_err(|_| Error::InternalStructDamaged)?;
 
                 assert!(
                     serialized.len() <= self.as_ref().u.flatten_func_params.buf_sizeLu as _
@@ -628,8 +632,8 @@ impl ArbParamsExtra {
                     self.as_ref().u.unflatten_func_params.flat_dataPV as *mut u8,
                     self.as_ref().u.unflatten_func_params.buf_sizeLu as _
                 );
-                let t = bincode::deserialize::<T>(serialized).map_err(|_| Error::InternalStructDamaged)?;
-                let handle = Handle::<T>::new(t)?;
+                let t = bincode::serde::decode_from_slice::<T, _>(serialized, bincode::config::legacy()).map_err(|_| Error::InternalStructDamaged)?;
+                let handle = Handle::<T>::new(t.0)?;
 
                 self.as_ref()
                     .u
@@ -1050,14 +1054,80 @@ impl<'p> ParamDef<'p> {
     }
 
     pub unsafe fn layer_def(&mut self) -> *mut ae_sys::PF_LayerDef {
-        &mut self.param_def.u.ld
+        unsafe { &mut self.param_def.u.ld }
     }
 
-    pub fn set_name(&mut self, name: &str) {
-        let name_cstr = CString::new(name).unwrap();
-        let name_slice = name_cstr.to_bytes_with_nul();
-        assert!(name_slice.len() <= 32);
-        self.param_def.name[0..name_slice.len()].copy_from_slice(unsafe { std::mem::transmute(name_slice) });
+    pub fn set_name(&mut self, name: &str) -> Result<(), Error> {
+        if name.is_empty() {
+            self.param_def.name_do_not_use_directly[0] = 0;
+            return Ok(());
+        }
+        // According to Adobe docs, the encoding expected for the name is the system encoding.
+        // Reference: https://ae-plugins.docsforadobe.dev/intro/localization/
+        let mut bytes = {
+            #[cfg(target_os = "macos")]
+            unsafe {
+                let cfstr = CFString::from_str(name);
+                let encoding = CFString::system_encoding(); 
+                let length = cfstr.length();
+                let max_size = CFString::maximum_size_for_encoding(length, encoding);
+                
+                let mut buffer = vec![0u8; max_size as usize];
+                let mut used_len = 0;
+                
+                 CFString::bytes(
+                    &cfstr,
+                    CFRange::new(0, length),
+                    encoding,
+                    b'?',  // replacement for unconvertible characters
+                    false,
+                    buffer.as_mut_ptr(),
+                    max_size,
+                    &mut used_len,
+                );
+                
+                buffer.truncate(used_len as usize);
+                buffer
+            }
+            #[cfg(target_os = "windows")]
+            unsafe {
+                use std::ffi::OsStr;
+                use std::os::windows::ffi::OsStrExt;
+                use windows_sys::Win32::Globalization::{WideCharToMultiByte, CP_OEMCP};
+                let mut wstr: Vec<u16> = OsStr::new(name).encode_wide().collect();
+                if !wstr.is_empty() {
+                    wstr.push(0); // Null-terminate
+                    let len = WideCharToMultiByte(CP_OEMCP, 0, wstr.as_ptr(), wstr.len() as i32, std::ptr::null_mut(), 0, std::ptr::null(), std::ptr::null_mut());
+                    if len > 0 {
+                        let mut bytes: Vec<u8> = Vec::with_capacity(len as usize);
+                        let len = WideCharToMultiByte(CP_OEMCP, 0, wstr.as_ptr(), wstr.len() as i32, bytes.as_mut_ptr() as _, len, std::ptr::null(), std::ptr::null_mut());
+                        if len > 0 {
+                            bytes.set_len(len as usize);
+                            bytes
+                        } else {
+                            Vec::new()
+                        }
+                    } else {
+                        Vec::new()
+                    }
+                } else {
+                    Vec::new()
+                }
+            }
+        };
+
+        let to_copy = bytes.len().min(MAX_NAME_LEN);
+        if to_copy > 0 {
+            bytes.resize(to_copy, 0);
+            if let Some(last_elem) = bytes.get_mut(MAX_NAME_LEN - 1) {
+                *last_elem = 0;
+            }
+            self.param_def.name_do_not_use_directly[0..bytes.len()].copy_from_slice(unsafe { std::mem::transmute(bytes.as_slice()) });
+            return Ok(());
+        }
+
+        log::error!("Failed to set the parameter name, \"{name}\" is too long or contains invalid characters for the system encoding.");
+        Err(Error::InvalidParms)
     }
 
     pub fn set_flags       (&mut self, f: ParamFlag)    { self.param_def.flags           = f.bits() as _; }
@@ -1161,7 +1231,7 @@ impl<'p, P: Eq + PartialEq + Hash + Copy + Debug> Parameters<'p, P> {
                 Vec::new()
             } else {
                 params
-                    .into_iter()
+                    .iter()
                     .enumerate()
                     .map(|(i, p)| { debug_assert!(!p.is_null()); ParamDef::from_raw(in_data_obj, unsafe { &mut **p }, Some(i as i32)) })
                     .collect::<Vec<_>>()
@@ -1183,7 +1253,7 @@ impl<'p, P: Eq + PartialEq + Hash + Copy + Debug> Parameters<'p, P> {
         assert!(!self.in_data.is_null());
 
         let mut param_def = ParamDef::new(InData::from_raw(self.in_data));
-        param_def.set_name(name);
+        param_def.set_name(name)?;
         param_def.as_mut().param_type = ParamType::GroupStart.into();
         param_def.set_id(Self::param_id(type_start));
         if start_collapsed {
@@ -1210,7 +1280,7 @@ impl<'p, P: Eq + PartialEq + Hash + Copy + Debug> Parameters<'p, P> {
         let param = def.into(); // This must outlive the call to .add()
 
         let mut param_def = ParamDef::new(InData::from_raw(self.in_data));
-        param_def.set_name(name);
+        param_def.set_name(name)?;
         param_def.set_param(&param);
         let param_type = param_def.param_type();
         param_def.set_id(Self::param_id(type_));
@@ -1229,7 +1299,7 @@ impl<'p, P: Eq + PartialEq + Hash + Copy + Debug> Parameters<'p, P> {
         let param = def.into(); // This must outlive the call to .add()
 
         let mut param_def = ParamDef::new(InData::from_raw(self.in_data));
-        param_def.set_name(name);
+        param_def.set_name(name)?;
         param_def.set_param(&param);
         let param_type = param_def.param_type();
         param_def.set_id(Self::param_id(type_));
@@ -1247,7 +1317,7 @@ impl<'p, P: Eq + PartialEq + Hash + Copy + Debug> Parameters<'p, P> {
         let param = def.into(); // This must outlive the call to .add()
 
         let mut param_def = ParamDef::new(InData::from_raw(self.in_data));
-        param_def.set_name(name);
+        param_def.set_name(name)?;
         param_def.set_param(&param);
         let param_type = param_def.param_type();
         param_def.set_id(Self::param_id(type_));
@@ -1262,21 +1332,21 @@ impl<'p, P: Eq + PartialEq + Hash + Copy + Debug> Parameters<'p, P> {
     }
 
     #[inline(always)]
-    pub fn get(&self, type_: P) -> Result<ReadOnlyOwnership<ParamDef<'p>>, Error> {
+    pub fn get(&self, type_: P) -> Result<ReadOnlyOwnership<'_, ParamDef<'p>>, Error> {
         self.get_at(type_, None, None, None)
     }
 
     #[inline(always)]
-    pub fn get_mut(&mut self, type_: P) -> Result<Ownership<ParamDef<'p>>, Error> {
+    pub fn get_mut(&mut self, type_: P) -> Result<Ownership<'_, ParamDef<'p>>, Error> {
         self.get_mut_at(type_, None, None, None)
     }
 
     #[inline(always)]
-    pub fn checkout(&self, type_: P) -> Result<Ownership<ParamDef<'p>>, Error> {
+    pub fn checkout(&self, type_: P) -> Result<Ownership<'_, ParamDef<'p>>, Error> {
         self.checkout_at(type_, None, None, None)
     }
 
-    pub fn get_at(&self, type_: P, time: Option<i32>, time_step: Option<i32>, time_scale: Option<u32>) -> Result<ReadOnlyOwnership<ParamDef<'p>>, Error> {
+    pub fn get_at(&self, type_: P, time: Option<i32>, time_step: Option<i32>, time_scale: Option<u32>) -> Result<ReadOnlyOwnership<'_, ParamDef<'p>>, Error> {
         if self.params.is_empty() || time.is_some() {
             match self.checkout_at(type_, time, time_step, time_scale) {
                 Ok(Ownership::Rust(param)) => Ok(ReadOnlyOwnership::Rust(param)),
@@ -1289,7 +1359,7 @@ impl<'p, P: Eq + PartialEq + Hash + Copy + Debug> Parameters<'p, P> {
         }
     }
 
-    pub fn get_mut_at(&mut self, type_: P, time: Option<i32>, time_step: Option<i32>, time_scale: Option<u32>) -> Result<Ownership<ParamDef<'p>>, Error> {
+    pub fn get_mut_at(&mut self, type_: P, time: Option<i32>, time_step: Option<i32>, time_scale: Option<u32>) -> Result<Ownership<'_, ParamDef<'p>>, Error> {
         if self.params.is_empty() || time.is_some() {
             self.checkout_at(type_, time, time_step, time_scale)
         } else {
@@ -1298,7 +1368,7 @@ impl<'p, P: Eq + PartialEq + Hash + Copy + Debug> Parameters<'p, P> {
         }
     }
 
-    pub fn checkout_at(&self, type_: P, time: Option<i32>, time_step: Option<i32>, time_scale: Option<u32>) -> Result<Ownership<ParamDef<'p>>, Error> {
+    pub fn checkout_at(&self, type_: P, time: Option<i32>, time_step: Option<i32>, time_scale: Option<u32>) -> Result<Ownership<'_, ParamDef<'p>>, Error> {
         let index = self.index(type_).ok_or(Error::InvalidIndex)?;
         let type_ = self.raw_param_type(type_).ok_or(Error::InvalidIndex)?;
         let in_data = self.in_data();
@@ -1336,10 +1406,10 @@ impl<'p, P: Eq + PartialEq + Hash + Copy + Debug> Parameters<'p, P> {
 
     pub fn cloned(&self) -> Parameters<'p, P> {
         Parameters::<'p, P> {
-            in_data: self.in_data.clone(),
+            in_data: self.in_data,
             num_params: self.num_params,
             map: self.map.clone(),
-            params: self.params.iter().cloned().collect(),
+            params: self.params.to_vec(),
         }
     }
 }

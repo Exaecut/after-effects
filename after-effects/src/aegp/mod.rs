@@ -12,6 +12,7 @@ pub mod suites {
     pub(crate) mod camera;               pub use camera              ::CameraSuite             as Camera;
     pub(crate) mod canvas;               pub use canvas              ::CanvasSuite             as Canvas;
     pub(crate) mod color_settings;       pub use color_settings      ::ColorSettingsSuite      as ColorSettings;
+    pub(crate) mod command;              pub use command             ::CommandSuite            as Command;
     pub(crate) mod comp;                 pub use comp                ::CompSuite               as Comp;
     pub(crate) mod composite;            pub use composite           ::CompositeSuite          as Composite;
     pub(crate) mod effect;               pub use effect              ::EffectSuite             as Effect;
@@ -25,22 +26,32 @@ pub mod suites {
     pub(crate) mod mask;                 pub use mask                ::{ MaskSuite             as Mask,
                                                                          MaskOutlineSuite      as MaskOutline };
     pub(crate) mod memory;               pub use memory              ::MemorySuite             as Memory;
+    pub(crate) mod persistent_data;      pub use persistent_data     ::PersistentDataSuite     as PersistentData;
     pub(crate) mod pf_interface;         pub use pf_interface        ::PFInterfaceSuite        as PFInterface;
     pub(crate) mod project;              pub use project             ::ProjectSuite            as Project;
+    pub(crate) mod register;             pub use register            ::{ RegisterSuite         as Register,
+                                                                         RegisterNonAegpSuite  as RegisterNonAegp };
     pub(crate) mod render_async_manager; pub use render_async_manager::RenderAsyncManagerSuite as RenderAsyncManager;
     pub(crate) mod render_options;       pub use render_options      ::RenderOptionsSuite      as RenderOptions;
     pub(crate) mod render;               pub use render              ::RenderSuite             as Render;
+    pub(crate) mod output_module;        pub use output_module       ::OutputModuleSuite       as OutputModule;
+    pub(crate) mod render_queue;         pub use render_queue        ::RenderQueueSuite        as RenderQueue;
+    pub(crate) mod render_queue_item;    pub use render_queue_item   ::RenderQueueItemSuite    as RenderQueueItem;
     pub(crate) mod sound_data;           pub use sound_data          ::SoundDataSuite          as SoundData;
     pub(crate) mod stream;               pub use stream              ::{ StreamSuite           as Stream,
                                                                          DynamicStreamSuite    as DynamicStream };
     pub(crate) mod utility;              pub use utility             ::UtilitySuite            as Utility;
     pub(crate) mod world;                pub use world               ::WorldSuite              as World;
+    pub(crate) mod compute_cache;        pub use compute_cache       ::ComputeCacheSuite       as ComputeCache;
+    pub(crate) mod hash;                 pub use hash                ::HashSuite               as Hash;
 }
 
 pub type PluginId = ae_sys::AEGP_PluginID;
 pub type ItemId = i32;
 pub type LayerId = u32;
 
+pub use suites::command::{MenuId, MenuOrder};
+pub use suites::register::{HookPriority, CommandHookStatus};
 pub use suites::project::{
     ProjectHandle,
     ProjectBitDepth,
@@ -70,6 +81,9 @@ pub use suites::comp::{
     Collection2Handle,
     CompFlags,
     CompHandle,
+};
+pub use suites::compute_cache:: {
+    ComputeClassId
 };
 pub use suites::effect::{
     Effect,
@@ -130,12 +144,30 @@ pub use suites::memory::{
     MemHandle,
     MemHandleLock,
 };
+pub use suites::persistent_data::{
+   PersistentType,
+   PersistentBlobHandle
+};
 pub use suites::render_async_manager::AsyncManager;
 pub use suites::render_options::{
     RenderOptions,
     RenderOptionsHandle,
     ItemQuality,
     ChannelOrder
+};
+pub use suites::output_module::{
+    EmbeddingType,
+    OutputTypes,
+    PostRenderAction,
+    StretchQuality,
+    VideoChannels,
+};
+pub use suites::render_queue::RenderQueueState;
+pub use suites::render_queue_item::{
+    LogType,
+    OutputModuleRefHandle,
+    RenderItemStatus,
+    RQItemRefHandle,
 };
 pub use suites::sound_data::SoundDataHandle;
 pub use suites::stream::{
@@ -157,3 +189,4 @@ pub use suites::world::{
     WorldHandle,
     WorldType,
 };
+pub use suites::hash::Guid;

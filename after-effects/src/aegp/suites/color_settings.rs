@@ -5,9 +5,9 @@ use pr::RenderContextHandle;
 define_suite!(
     /// We've provided a function so AEGPs can obtain information on After Effects' current color management settings.
     ColorSettingsSuite,
-    AEGP_ColorSettingsSuite5,
+    AEGP_ColorSettingsSuite6,
     kAEGPColorSettingsSuite,
-    kAEGPColorSettingsSuiteVersion5
+    kAEGPColorSettingsSuiteVersion6
 );
 
 impl ColorSettingsSuite {
@@ -51,7 +51,7 @@ impl ColorSettingsSuite {
     /// Retrieves a new ICC profile representing the specified color profile.
     ///
     /// Use [`MemHandle::to_bytes()`] to convert into `Vec<u8>`.
-    pub fn new_icc_profile_from_color_profile(&self, plugin_id: PluginId, color_profile: ConstColorProfileHandle) -> Result<MemHandle<u8>, Error> {
+    pub fn new_icc_profile_from_color_profile(&self, plugin_id: PluginId, color_profile: ConstColorProfileHandle) -> Result<MemHandle<'_, u8>, Error> {
         let handle = call_suite_fn_single!(self, AEGP_GetNewICCProfileFromColorProfile -> ae_sys::AEGP_MemHandle, plugin_id, color_profile.as_ptr())?;
         Ok(MemHandle::from_raw(handle)?)
     }
@@ -137,6 +137,23 @@ impl ColorSettingsSuite {
             U16CString::from_ptr_str(MemHandle::<u16>::from_raw(display)?.lock()?.as_ptr()).to_string_lossy(),
             U16CString::from_ptr_str(MemHandle::<u16>::from_raw(view)   ?.lock()?.as_ptr()).to_string_lossy()
         )})
+    }
+    pub fn is_color_space_aware_effects_enabled(&self, plugin_id: PluginId) -> Result<bool, Error> {
+        Ok(call_suite_fn_single!(self, AEGPD_IsColorSpaceAwareEffectsEnabled -> ae_sys::A_Boolean, plugin_id)? != 0)
+    }
+    pub fn lut_interpolation_method(&self, plugin_id: PluginId) -> Result<u16, Error> {
+        Ok(call_suite_fn_single!(self, AEGPD_GetLUTInterpolationMethod -> ae_sys::A_u_short, plugin_id)?)
+    }
+    pub fn graphics_white_luminance(&self, plugin_id: PluginId) -> Result<u16, Error> {
+        Ok(call_suite_fn_single!(self, AEGPD_GetGraphicsWhiteLuminance -> ae_sys::A_u_short, plugin_id)?)
+    }
+    pub fn working_color_space_id(&self, plugin_id: PluginId) -> Result<ae_sys::AEGP_GuidP, Error> {
+        let val: ae_sys::AEGP_GuidP = unsafe { std::mem::zeroed() };
+        let err = unsafe { ae_get_suite_fn!(self.suite_ptr, AEGPD_GetWorkingColorSpaceId)(plugin_id, val) };
+        match err {
+            0 => Ok(val),
+            _ => Err(Error::from(err))
+        }
     }
 }
 

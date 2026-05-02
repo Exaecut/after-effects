@@ -1,5 +1,5 @@
 // FIXME: make ALL the functions below return Result-wrapped values
-
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 use after_effects_sys as ae_sys;
 use num_traits::identities::Zero;
@@ -19,6 +19,7 @@ mod macros;
 
 #[macro_use]
 mod plugin_base;
+pub use plugin_base::{AegpPlugin, AegpSeal};
 
 #[macro_use]
 mod cross_thread_type;
@@ -45,9 +46,9 @@ pub use win_dbg_logger;
 #[cfg(target_os = "macos")]
 pub use oslog;
 
-thread_local!(
-    pub(crate) static PICA_BASIC_SUITE: RefCell<*const ae_sys::SPBasicSuite> = RefCell::new(ptr::null_mut())
-);
+thread_local! {
+    pub(crate) static PICA_BASIC_SUITE: RefCell<*const ae_sys::SPBasicSuite> = const { RefCell::new(ptr::null_mut()) };
+}
 
 #[inline]
 pub(crate) fn borrow_pica_basic_as_ptr() -> *const ae_sys::SPBasicSuite {
@@ -166,7 +167,7 @@ define_enum! {
         InvalidParms             = ae_sys::suiteError_InvalidParms,
 
         Unknown10007             = UNKNOWN_ERR_10007,
-
+        NotInComputeCache        = ae_sys::A_Err_NOT_IN_CACHE_OR_COMPUTE_PENDING,
         None = ae_sys::PF_Err_NONE,
     }
 }
@@ -180,7 +181,7 @@ impl From<Error> for &'static str {
             Error::OutOfMemory              => "Out of memory.",
             Error::WrongThread              => "Call made from wrong thread.",
             Error::ConstProjectModification => "Project changes must originate in the UI/Main thread.",
-            Error::MissingSuite             => "Could no aquire suite.",
+            Error::MissingSuite             => "Could not aquire suite.",
             Error::InternalStructDamaged    => "Internal struct is damaged.",
             Error::InvalidIndex             => "Out of range, or action not allowed on this index.",
             Error::UnrecogizedParameterType => "Unrecognized parameter type",
@@ -194,6 +195,7 @@ impl From<Error> for &'static str {
             Error::InvalidParms             => "InvalidParms",
             Error::Reserved11               => "Reserved11",
             Error::Unknown10007             => "Unknown10007",
+            Error::NotInComputeCache        => "Value not found in compute cache.",
         }
     }
 }
@@ -207,11 +209,10 @@ impl Display for Error {
 
 impl error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(self)
+        None
     }
 }
 
-//FIXME uncomment this once TryReserve() becomes stable in nightly
 impl From<std::collections::TryReserveError> for Error {
     fn from(_: std::collections::TryReserveError) -> Self {
         Error::OutOfMemory

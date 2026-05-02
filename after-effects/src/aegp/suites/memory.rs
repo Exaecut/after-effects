@@ -111,7 +111,7 @@ impl<'a, T: 'a> MemHandle<'a, T> {
     }
 
     #[inline]
-    pub fn lock(&self) -> Result<MemHandleLock<T>, Error> {
+    pub fn lock(&self) -> Result<MemHandleLock<'_, T>, Error> {
         let ptr = self.suite.lock_mem_handle(self.handle)? as *mut T;
         Ok(MemHandleLock {
             parent_handle: self,
@@ -186,7 +186,7 @@ impl<'a, T> MemHandleLock<'a, T> {
         }
     }
 
-    pub fn as_ref_mut(&self) -> Result<&'a mut T, Error> {
+    pub fn as_ref_mut(&mut self) -> Result<&'a mut T, Error> {
         if self.ptr.is_null() {
             Err(Error::Generic)
         } else {

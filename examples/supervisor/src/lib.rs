@@ -86,10 +86,6 @@ struct Instance {
 ae::define_effect!(Plugin, Instance, Params);
 
 impl AdobePluginGlobal for Plugin {
-    fn can_load(_host_name: &str, _host_version: &str) -> bool {
-        true
-    }
-
     fn params_setup(&self, params: &mut ae::Parameters<Params>, _in_data: InData, _: OutData) -> Result<(), Error> {
         params.add_with_flags(Params::Mode, "Mode", ae::PopupDef::setup(|f| {
             f.set_options(&["Basic", "Advanced"]);
@@ -132,7 +128,7 @@ impl AdobePluginGlobal for Plugin {
             }
             ae::Command::GlobalSetup => {
                 if let Ok(suite) = ae::aegp::suites::Utility::new() {
-                    self.my_id = suite.register_with_aegp(None, "Supervisor")?;
+                    self.my_id = suite.register_with_aegp("Supervisor")?;
                 }
             }
             _ => { }
@@ -143,10 +139,10 @@ impl AdobePluginGlobal for Plugin {
 
 impl AdobePluginInstance for Instance {
     fn flatten(&self) -> Result<(u16, Vec<u8>), Error> {
-        Ok((1, bincode::serialize(self).unwrap()))
+        Ok((1, bincode::serde::encode_to_vec(self, bincode::config::standard()).unwrap()))
     }
     fn unflatten(_version: u16, bytes: &[u8]) -> Result<Self, Error> {
-        Ok(bincode::deserialize(bytes).unwrap_or_default())
+        Ok(bincode::serde::decode_from_slice(bytes, bincode::config::standard()).unwrap_or_default().0)
     }
 
     fn render(&self, _: &mut PluginState, _: &Layer, _: &mut Layer) -> Result<(), ae::Error> { Ok(()) }
@@ -292,12 +288,12 @@ impl AdobePluginInstance for Instance {
                 if mode == (Mode::Basic as i32) {
                     let mut flavor = params_copy.get_mut(Params::Flavor)?;
                     flavor.set_ui_flag(ae::ParamUIFlags::DISABLED, false);
-                    flavor.set_name("Flavor");
+                    flavor.set_name("Flavor")?;
                     flavor.update_param_ui()?;
                 } else if mode == Mode::Advanced as i32 && !params_copy.get(Params::Flavor)?.ui_flags().contains(ae::ParamUIFlags::DISABLED) {
                     let mut flavor = params_copy.get_mut(Params::Flavor)?;
                     flavor.set_ui_flag(ae::ParamUIFlags::DISABLED, true);
-                    flavor.set_name("Flavor (disabled in Basic mode)");
+                    flavor.set_name("Flavor (disabled in Basic mode)")?;
                     flavor.update_param_ui()?;
                 }
 

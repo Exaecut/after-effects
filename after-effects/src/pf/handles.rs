@@ -22,7 +22,7 @@ impl<'a, T> HandleLock<'a, T> {
         }
     }
 
-    pub fn as_ref_mut(&self) -> Result<&'a mut T, Error> {
+    pub fn as_ref_mut(&mut self) -> Result<&'a mut T, Error> {
         if self.ptr.is_null() {
             Err(Error::InvalidIndex)
         } else {
@@ -109,19 +109,22 @@ impl<'a, T: 'a> Handle<'a, T> {
         }
     }
 
-    pub fn set(&mut self, value: T) {
+    pub fn set(&mut self, value: T) -> Result<(), Error> {
         let ptr = self.suite.lock_handle(self.handle) as *mut T;
-        if !ptr.is_null() {
+        if ptr.is_null() {
+            Err(Error::InvalidIndex)
+        } else {
             unsafe {
                 // Run destructors, if any.
-                ptr.read()
-            };
+                ptr.read();
+                ptr.write(value);
+            }
+            self.suite.unlock_handle(self.handle);
+            Ok(())
         }
-        unsafe { ptr.write(value) };
-        self.suite.unlock_handle(self.handle);
     }
 
-    pub fn lock(&mut self) -> Result<HandleLock<T>, Error> {
+    pub fn lock(&mut self) -> Result<HandleLock<'_, T>, Error> {
         let ptr = self.suite.lock_handle(self.handle) as *mut T;
         if ptr.is_null() {
             Err(Error::InvalidIndex)
@@ -270,7 +273,7 @@ impl<'a> FlatHandle<'a> {
     }
 
     #[inline]
-    pub fn lock<'b: 'a>(&'b self) -> Result<FlatHandleLock, Error> {
+    pub fn lock<'b: 'a>(&'b self) -> Result<FlatHandleLock<'b, 'a>, Error> {
         let ptr = self.suite.lock_handle(self.handle) as *mut u8;
         if ptr.is_null() {
             Err(Error::InvalidIndex)

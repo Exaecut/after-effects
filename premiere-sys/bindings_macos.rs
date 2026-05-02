@@ -552,10 +552,10 @@ pub type PrFourCC = csSDK_uint32;
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct prRect {
-    pub top: csSDK_int16,
-    pub left: csSDK_int16,
-    pub bottom: csSDK_int16,
-    pub right: csSDK_int16,
+    pub top: csSDK_int32,
+    pub left: csSDK_int32,
+    pub bottom: csSDK_int32,
+    pub right: csSDK_int32,
 }
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]

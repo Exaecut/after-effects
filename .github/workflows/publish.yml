@@ -22,11 +22,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout (with 2 commits of history)
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          # Need HEAD + parent so we can diff Cargo.toml versions.
-          fetch-depth: 2
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -36,47 +33,52 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: Publish crates whose version bumped
+      - name: Publish crates whose on-disk version isn't on crates.io yet
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           set -euo pipefail
 
-          # Extract `version = "X.Y.Z"` from a Cargo.toml on a given git ref.
-          # Returns empty string if the file doesn't exist at that ref.
-          version_at() {
-            local ref="$1" file="$2"
-            git show "$ref:$file" 2>/dev/null \
-              | awk -F'"' '/^version = "/ { print $2; exit }'
+          version_of() {
+            local file="$1"
+            awk -F'"' '/^version = "/ { print $2; exit }' "$file"
           }
 
-          publish_if_bumped() {
+          already_published() {
+            local pkg="$1" version="$2"
+            local code
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              "https://crates.io/api/v1/crates/$pkg/$version")
+            [[ "$code" == "200" ]]
+          }
+
+          publish_if_needed() {
             local pkg="$1" manifest_path="$2"
-            local new_v old_v
-            new_v="$(version_at HEAD "$manifest_path" || true)"
-            old_v="$(version_at HEAD~1 "$manifest_path" || true)"
-            if [[ -z "$new_v" ]]; then
-              echo "::warning::$pkg: Cargo.toml missing at HEAD, skipping"
+            local v
+            v=$(version_of "$manifest_path" || true)
+            if [[ -z "$v" ]]; then
+              echo "::warning::$pkg: no version in $manifest_path, skipping"
               return 0
             fi
-            if [[ "$new_v" == "$old_v" ]]; then
-              echo "$pkg: unchanged (v$new_v), skipping"
+            if already_published "$pkg" "$v"; then
+              echo "$pkg v$v: already on crates.io, skipping"
               return 0
             fi
-            echo "::notice::Publishing $pkg v$new_v (was v${old_v:-none})"
-            # --allow-dirty is safe because we just checked out a pristine tree
-            # and no build has mutated anything yet.
+            echo "::notice::Publishing $pkg v$v"
             cargo publish -p "$pkg" --allow-dirty \
-              || cargo_publish_retry_or_fail "$pkg" "$new_v"
+              || cargo_publish_retry "$pkg" "$v"
           }
 
-          # Retry up to 3 times on transient errors (rate limit, index lag).
-          cargo_publish_retry_or_fail() {
+          cargo_publish_retry() {
             local pkg="$1" version="$2"
             local attempt
             for attempt in 2 3 4; do
-              echo "::warning::$pkg v$version publish attempt $attempt after sleep 60s"
+              echo "::warning::$pkg v$version publish attempt $attempt after 60s sleep"
               sleep 60
+              if already_published "$pkg" "$version"; then
+                echo "$pkg v$version: landed on crates.io between attempts, skipping"
+                return 0
+              fi
               if cargo publish -p "$pkg" --allow-dirty; then
                 return 0
               fi
@@ -85,15 +87,15 @@ jobs:
             return 1
           }
 
-          # Order matters: -sys crates first, then high-level, then pipl last
-          # (pipl has no inter-dep, any order works for it).
-          publish_if_bumped exaecut-after-effects-sys after-effects-sys/Cargo.toml
-          publish_if_bumped exaecut-premiere-sys      premiere-sys/Cargo.toml
+          # Order: -sys crates first, then high-level crates that depend on
+          # them, then pipl (independent — any order works).
+          publish_if_needed exaecut-after-effects-sys after-effects-sys/Cargo.toml
+          publish_if_needed exaecut-premiere-sys      premiere-sys/Cargo.toml
 
-          # Give the crates.io sparse index time to propagate before the
-          # high-level crates try to resolve the sys bumps.
+          # Let the crates.io sparse index catch up before resolving the
+          # high-level deps.
           sleep 60
 
-          publish_if_bumped exaecut-after-effects after-effects/Cargo.toml
-          publish_if_bumped exaecut-premiere      premiere/Cargo.toml
-          publish_if_bumped exaecut-pipl          pipl/Cargo.toml
+          publish_if_needed exaecut-after-effects after-effects/Cargo.toml
+          publish_if_needed exaecut-premiere      premiere/Cargo.toml
+          publish_if_needed exaecut-pipl          pipl/Cargo.toml

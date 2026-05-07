@@ -9,8 +9,8 @@ license = "MIT OR Apache-2.0"
 crate-type = ["cdylib"]
 
 [dependencies]
-after-effects = { path = "../../after-effects" }
+exaecut-after-effects = { path = "../../after-effects" }
 fastrand = "2.4"
 
 [build-dependencies]
-pipl = { path = "../../pipl" }
+exaecut-pipl = { path = "../../pipl" }

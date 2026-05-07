@@ -1,17 +1,25 @@
 [package]
-name = "after-effects-sys"
-version = "0.4.0"
+name = "exaecut-after-effects-sys"
+version = "0.5.0"
 authors = [
-    "Adrian Eddy <adrian.eddy@gmail.com>, Moritz Moeller <virtualritz@protonmail.com>",
+    "Adrian Eddy <adrian.eddy@gmail.com>",
+    "Moritz Moeller <virtualritz@protonmail.com>",
+    "Marvin Cano <marvin.cano@exaecut.io>",
 ]
 license = "Apache-2.0 OR BSD-3-Clause OR MIT OR Zlib"
 edition = "2024"
-description = "Auto-generated After Effects® bindings"
+description = "Auto-generated After Effects® bindings — Exaecut fork"
 keywords = ["motion-graphics", "after-effects", "graphics", "plugins"]
 categories = ["graphics", "multimedia::video", "rendering::graphics-api"]
 readme = "README.md"
 homepage = "https://developer.adobe.com/after-effects/"
-repository = "https://github.com/virtualritz/after-effects/"
+repository = "https://github.com/Exaecut/after-effects/"
+
+[lib]
+# Preserve the existing `use after_effects_sys::...` library symbol so the
+# rename from `after-effects-sys` → `exaecut-after-effects-sys` is transparent
+# to `after-effects` and any consumer that pulls in the sys crate directly.
+name = "after_effects_sys"
 
 [features]
 artisan-2-api = []

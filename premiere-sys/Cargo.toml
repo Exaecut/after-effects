@@ -1,14 +1,21 @@
 [package]
-name = "premiere-sys"
-version = "0.4.0"
-authors = ["Adrian <adrian.eddy@gmail.com>"]
+name = "exaecut-premiere-sys"
+version = "0.5.0"
+authors = [
+    "Adrian Eddy <adrian.eddy@gmail.com>",
+    "Marvin Cano <marvin.cano@exaecut.io>",
+]
 license = "Apache-2.0 OR BSD-3-Clause OR MIT OR Zlib"
 edition = "2024"
-description = "Auto-generated Adobe Premiere® bindings"
+description = "Auto-generated Adobe Premiere® bindings — Exaecut fork"
 keywords = ["motion-graphics", "premiere", "graphics", "plugins"]
 categories = ["graphics", "multimedia::video", "rendering::graphics-api"]
 homepage = "https://developer.adobe.com/premiere-pro/"
-repository = "https://github.com/virtualritz/after-effects/"
+repository = "https://github.com/Exaecut/after-effects/"
+
+[lib]
+# Preserve the `use premiere_sys::...` symbol so the rename is transparent.
+name = "premiere_sys"
 
 [build-dependencies]
 bindgen = "0.72"

@@ -1,0 +1,99 @@
+name: Publish exaecut-* to crates.io
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'after-effects/Cargo.toml'
+      - 'after-effects-sys/Cargo.toml'
+      - 'premiere/Cargo.toml'
+      - 'premiere-sys/Cargo.toml'
+      - 'pipl/Cargo.toml'
+  workflow_dispatch: # manual "publish everything that's bumped" trigger
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish changed crates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout (with 2 commits of history)
+        uses: actions/checkout@v4
+        with:
+          # Need HEAD + parent so we can diff Cargo.toml versions.
+          fetch-depth: 2
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Publish crates whose version bumped
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Extract `version = "X.Y.Z"` from a Cargo.toml on a given git ref.
+          # Returns empty string if the file doesn't exist at that ref.
+          version_at() {
+            local ref="$1" file="$2"
+            git show "$ref:$file" 2>/dev/null \
+              | awk -F'"' '/^version = "/ { print $2; exit }'
+          }
+
+          publish_if_bumped() {
+            local pkg="$1" manifest_path="$2"
+            local new_v old_v
+            new_v="$(version_at HEAD "$manifest_path" || true)"
+            old_v="$(version_at HEAD~1 "$manifest_path" || true)"
+            if [[ -z "$new_v" ]]; then
+              echo "::warning::$pkg: Cargo.toml missing at HEAD, skipping"
+              return 0
+            fi
+            if [[ "$new_v" == "$old_v" ]]; then
+              echo "$pkg: unchanged (v$new_v), skipping"
+              return 0
+            fi
+            echo "::notice::Publishing $pkg v$new_v (was v${old_v:-none})"
+            # --allow-dirty is safe because we just checked out a pristine tree
+            # and no build has mutated anything yet.
+            cargo publish -p "$pkg" --allow-dirty \
+              || cargo_publish_retry_or_fail "$pkg" "$new_v"
+          }
+
+          # Retry up to 3 times on transient errors (rate limit, index lag).
+          cargo_publish_retry_or_fail() {
+            local pkg="$1" version="$2"
+            local attempt
+            for attempt in 2 3 4; do
+              echo "::warning::$pkg v$version publish attempt $attempt after sleep 60s"
+              sleep 60
+              if cargo publish -p "$pkg" --allow-dirty; then
+                return 0
+              fi
+            done
+            echo "::error::$pkg v$version publish failed after 4 attempts"
+            return 1
+          }
+
+          # Order matters: -sys crates first, then high-level, then pipl last
+          # (pipl has no inter-dep, any order works for it).
+          publish_if_bumped exaecut-after-effects-sys after-effects-sys/Cargo.toml
+          publish_if_bumped exaecut-premiere-sys      premiere-sys/Cargo.toml
+
+          # Give the crates.io sparse index time to propagate before the
+          # high-level crates try to resolve the sys bumps.
+          sleep 60
+
+          publish_if_bumped exaecut-after-effects after-effects/Cargo.toml
+          publish_if_bumped exaecut-premiere      premiere/Cargo.toml
+          publish_if_bumped exaecut-pipl          pipl/Cargo.toml

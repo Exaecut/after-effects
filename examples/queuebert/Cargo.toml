@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 log = "0.4"
-after-effects = { path = "../../after-effects" }
+exaecut-after-effects = { path = "../../after-effects" }
 
 [build-dependencies]
-pipl = { path = "../../pipl" }
+exaecut-pipl = { path = "../../pipl" }

@@ -1,24 +1,35 @@
 [package]
-name = "after-effects"
-version = "0.4.0"
+name = "exaecut-after-effects"
+version = "0.5.0"
 authors = [
-    "Adrian Eddy <adrian.eddy@gmail.com>, Moritz Moeller <virtualritz@protonmail.com>",
+    "Adrian Eddy <adrian.eddy@gmail.com>",
+    "Moritz Moeller <virtualritz@protonmail.com>",
+    "Marvin Cano <marvin.cano@exaecut.io>",
 ]
 license = "Apache-2.0 OR BSD-3-Clause OR MIT OR Zlib"
 edition = "2024"
-description = "High level bindings for the Adobe After Effects® SDK"
+description = "High level bindings for the Adobe After Effects® SDK — Exaecut fork"
 keywords = ["motion-graphics", "after-effects", "graphics", "plugins"]
 categories = ["graphics", "multimedia::video", "rendering::graphics-api"]
 readme = "../README.md"
 homepage = "https://developer.adobe.com/after-effects/"
-repository = "https://github.com/virtualritz/after-effects/"
+repository = "https://github.com/Exaecut/after-effects/"
+
+[lib]
+# Preserve the `use after_effects::...` path downstream so the crate rename
+# from `after-effects` → `exaecut-after-effects` is transparent.
+name = "after_effects"
 
 [features]
 artisan-2-api = ["after-effects-sys/artisan-2-api"]
 default = []
 
 [dependencies]
-after-effects-sys = "0.4"                                              #{path = "../after-effects-sys"}
+# Dual-spec inside the workspace: `version` is what crates.io sees,
+# `path = "../after-effects-sys"` lets the local workspace build the sibling
+# before it's been published. We rename via `package = ` so that the existing
+# `use after_effects_sys::...` paths inside this crate's source stay unchanged.
+after-effects-sys = { version = "0.5", package = "exaecut-after-effects-sys", path = "../after-effects-sys" }
 bincode = { version = "2.0", features = ["serde"] }
 bitflags = "2.11"
 cstr-literal = "0.1"

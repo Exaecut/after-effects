@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 crate-type = ["cdylib"]
 
 [dependencies]
-after-effects = { path = "../../after-effects" }
+exaecut-after-effects = { path = "../../after-effects" }
 log = "0.4"
 wgpu = { version = "29", features = ["spirv"] }
 pollster = "0.4"
@@ -18,4 +18,4 @@ parking_lot = "0.12"
 num_cpus = "1.17"
 
 [build-dependencies]
-pipl = { path = "../../pipl" }
+exaecut-pipl = { path = "../../pipl" }

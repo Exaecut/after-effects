@@ -1,18 +1,24 @@
 [package]
-name = "premiere"
-version = "0.4.0"
+name = "exaecut-premiere"
+version = "0.5.0"
 authors = [
     "Adrian Eddy <adrian.eddy@gmail.com>",
     "Moritz Moeller <virtualritz@protonmail.com>",
+    "Marvin Cano <marvin.cano@exaecut.io>",
 ]
 license = "Apache-2.0 OR BSD-3-Clause OR MIT OR Zlib"
 edition = "2024"
 readme = "../README.md"
-description = "High level bindings for the Adobe Premiere® SDK"
+description = "High level bindings for the Adobe Premiere® SDK — Exaecut fork"
 keywords = ["motion-graphics", "premiere", "graphics", "plugins"]
 categories = ["graphics", "multimedia::video", "rendering::graphics-api"]
 homepage = "https://developer.adobe.com/premiere-pro/"
-repository = "https://github.com/virtualritz/after-effects/"
+repository = "https://github.com/Exaecut/after-effects/"
+
+[lib]
+# Preserve the `use premiere::...` path downstream so the crate rename from
+# `premiere` → `exaecut-premiere` is transparent.
+name = "premiere"
 
 [dependencies]
 base64 = "0.22"
@@ -21,5 +27,7 @@ bitflags = "2.11"
 fastrand = "2.4"
 log = "0.4"
 parking_lot = "0.12"
-premiere-sys = "0.4"                               #{ path = "../premiere-sys" }
+# Dual-spec + rename so the `use premiere_sys::...` paths inside this crate's
+# source stay unchanged. crates.io sees it as `exaecut-premiere-sys`.
+premiere-sys = { version = "0.5", package = "exaecut-premiere-sys", path = "../premiere-sys" }
 serde = { version = "1.0", features = ["derive"] }

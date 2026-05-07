@@ -18,7 +18,11 @@ concurrency:
 jobs:
   publish:
     name: Publish changed crates
-    runs-on: ubuntu-latest
+    # macos-latest is required because cargo publish verifies by compiling
+    # the crate. These bindings are #[cfg(target_os)]-gated to macOS +
+    # Windows only — verify fails on Linux (e.g. missing UNKNOWN_ERR_10007
+    # and bindings constants in pf/parameters.rs).
+    runs-on: macos-latest
     permissions:
       contents: read
     steps:

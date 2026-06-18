@@ -38,6 +38,7 @@
 #include "PrSDKTimeSuite.h"
 #include "PrSDKTypes.h"
 #include "PrSDKVideoSegmentProperties.h"
+#include "PrSDKVideoSegmentRenderSuite.h"
 #include "PrSDKVideoSegmentSuite.h"
 #include "PrSDKWindowSuite.h"
 #ifdef HAS_AE_SDK

@@ -1,6 +1,6 @@
 [package]
 name = "exaecut-premiere"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
     "Adrian Eddy <adrian.eddy@gmail.com>",
     "Moritz Moeller <virtualritz@protonmail.com>",
@@ -29,5 +29,5 @@ log = "0.4"
 parking_lot = "0.12"
 # Dual-spec + rename so the `use premiere_sys::...` paths inside this crate's
 # source stay unchanged. crates.io sees it as `exaecut-premiere-sys`.
-premiere-sys = { version = "0.5", package = "exaecut-premiere-sys", path = "../premiere-sys" }
+premiere-sys = { version = "0.6", package = "exaecut-premiere-sys", path = "../premiere-sys" }
 serde = { version = "1.0", features = ["derive"] }

@@ -3273,6 +3273,447 @@ pub type SegmentNodePropertyCallback = ::std::option::Option<
         inValue: *const prUTF8Char,
     ) -> prSuiteError,
 >;
+pub const kPrSDKVideoSegmentRenderSuite: &[u8; 37] = b"MediaCore Video Segment Render Suite\0";
+pub const kPrSDKVideoSegmentRenderSuiteVersion5: u32 = 5;
+pub const kPrSDKVideoSegmentRenderSuiteVersion6: u32 = 6;
+pub const kPrSDKVideoSegmentRenderSuiteVersion7: u32 = 7;
+pub const kPrSDKVideoSegmentRenderSuiteVersion: u32 = 7;
+pub const imRenderIntent_imRenderIntent_Unknown: imRenderIntent = -1;
+pub const imRenderIntent_imRenderIntent_Export: imRenderIntent = 0;
+pub const imRenderIntent_imRenderIntent_Stopped: imRenderIntent = 1;
+pub const imRenderIntent_imRenderIntent_Scrubbing: imRenderIntent = 2;
+pub const imRenderIntent_imRenderIntent_Preroll: imRenderIntent = 3;
+pub const imRenderIntent_imRenderIntent_Playing: imRenderIntent = 4;
+pub const imRenderIntent_imRenderIntent_SpeculativePrefetch: imRenderIntent = 5;
+pub const imRenderIntent_imRenderIntent_Thumbnail: imRenderIntent = 6;
+pub const imRenderIntent_imRenderIntent_Analysis: imRenderIntent = 7;
+pub const imRenderIntent_imRenderIntent_ExportPreview: imRenderIntent = 8;
+pub const imRenderIntent_imRenderIntent_ExportProxies: imRenderIntent = 9;
+pub const imRenderIntent_imRenderIntent_DistantPrefetch: imRenderIntent = 10;
+pub type imRenderIntent = ::std::os::raw::c_int;
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
+pub struct imRenderContext {
+    pub inIntent: imRenderIntent,
+    pub inPlaybackRatio: f64,
+    pub inPlaybackRate: f64,
+}
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
+pub struct ClipFrameDescriptor {
+    pub inPixelFormat: PrPixelFormat,
+    pub inWidth: csSDK_int32,
+    pub inHeight: csSDK_int32,
+    pub inPixelAspectRatioNumerator: csSDK_int32,
+    pub inPixelAspectRatioDenominator: csSDK_int32,
+    pub inFieldType: prFieldType,
+    pub inQuality: PrRenderQuality,
+}
+pub type PrSDKVideoSegmentAsyncRenderCompletionProc = ::std::option::Option<
+    unsafe extern "C" fn(
+        inRenderedFrame: PPixHand,
+        inCompletionData: csSDK_int64,
+        inResult: prSuiteError,
+    ),
+>;
+#[repr(C, packed)]
+#[derive(Copy, Clone)]
+pub struct PrSDKVideoSegmentRenderSuite {
+    #[doc = " For a given node, in a given timeline, render the frame that that node would normally produce, given an overriding frame rect.\n For any of the overrides, you can pass zero, implying that you don't want to override at all. This is useful when rendering the inputs to a MulticamNode\n Note that the resulting frame may not match any of your requested pixel formats.\n\n @param inTimelineID - the timeline identifier provided by the host\n @param inNodeID - the node you would like to render. Effect nodes are not suitable for this call, but all other node types will work fine.\n\t\t\t\t\t\tIn general, inputs will work, operators will not.\n @param inSequenceTime - the time you want rendered, in the containing timeline. This is used for filters that request other media during their render\n @param inSegmentTime - the time you want rendered, relative to the node's concept of time, not the containing timeline.\n @param inFrameRateScale - the frame rate you want rendered. In general, this should be the framerate of the timeline, but any can be provided.\n @param inFrameRateSampleSize - see above.\n @param inSequenceWidth - the overridden sequence width\n @param inSequenceHeight - the overridden sequence height\n @param inSequencePixelAspectRatioNumerator - the overridden sequence PAR\n @param inSequencePixelAspectRatioDenominator - the overridden sequence PAR\n @param inRenderParams - the same set of render params used in the SequenceRenderSuite. The option to composite on black is ignored.\n @param inCompletionProc - the callback that will be called when the render is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub ProduceFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tA matching function for ProduceFrameAsync. This allows you to check the cache for this frame\n\tprior to requesting it to be rendered."]
+    pub GetIdentifierForProduceFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    pub ApplyOperatorsToFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub GetIdentifierForApplyOperatorsToFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    pub ApplyTransitionToFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inTransitionNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inOutgoingInputFrame: PPixHand,
+            inIncomingInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub GetIdentifierForApplyTransitionToFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inTransitionNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inOutgoingInputFrame: PPixHand,
+            inIncomingInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    pub SelectClipFrameDescriptor: ::std::option::Option<
+        unsafe extern "C" fn(
+            inClipID: PrClipID,
+            inClipTime: PrTime,
+            inDesiredClipFrameDescriptor: *const ClipFrameDescriptor,
+            outBestFrameDescriptor: *mut ClipFrameDescriptor,
+        ) -> prSuiteError,
+    >,
+    pub InitiateClipPrefetch: ::std::option::Option<
+        unsafe extern "C" fn(
+            inClipID: PrClipID,
+            inRequestedFrameDescriptor: *const ClipFrameDescriptor,
+            inMediaTime: PrTime,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub GetIdentifierForInitiateClipPrefetch: ::std::option::Option<
+        unsafe extern "C" fn(
+            inClipID: PrClipID,
+            inRequestedFrameDescriptor: *const ClipFrameDescriptor,
+            inMediaTime: PrTime,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    pub CancelAsyncRequest:
+        ::std::option::Option<unsafe extern "C" fn(inRequestID: csSDK_int32) -> prSuiteError>,
+    pub SupportsInitiateClipPrefetch: ::std::option::Option<
+        unsafe extern "C" fn(inClipID: PrClipID, outSupported: *mut prBool) -> prSuiteError,
+    >,
+    pub ProduceFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub InitiateClipPrefetch2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inClipID: PrClipID,
+            inRequestedFrameDescriptor: *const ClipFrameDescriptor,
+            inMediaTime: PrTime,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub ApplyOperatorsToFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub ProduceFrameAsync3: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub GetIdentifierForProduceFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inBypassEffects: prBool,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    pub ApplyOperatorsToFrameAsync3: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub GetIdentifierForApplyOperatorsToFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inBypassEffects: prBool,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    pub ApplyTransitionToFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inTransitionNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inOutgoingInputFrame: PPixHand,
+            inIncomingInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub ProduceColorManagedFrameAsync4: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            inRenderCaptioningStreamFormat: PrRenderCaptionStreamFormat,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub GetIdentifierForProduceColorManagedFrameAsync3: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inBypassEffects: prBool,
+            inRenderCaptioningStreamFormat: PrRenderCaptionStreamFormat,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    pub ApplyOperatorsToColorManagedFrameAsync4: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            inRenderCaptioningStreamFormat: PrRenderCaptionStreamFormat,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub GetIdentifierForApplyOperatorsToColorManagedFrameAsync3: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inBypassEffects: prBool,
+            inRenderCaptioningStreamFormat: PrRenderCaptionStreamFormat,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    pub ApplyTransitionToColorManagedFrameAsync3: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inTransitionNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inOutgoingInputFrame: PPixHand,
+            inIncomingInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            inRenderCaptioningStreamFormat: PrRenderCaptionStreamFormat,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    pub GetIdentifierForApplyTransitionToColorManagedFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inTransitionNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inOutgoingInputFrame: PPixHand,
+            inIncomingInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inRenderCaptioningStreamFormat: PrRenderCaptionStreamFormat,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    pub InitiateDistantPrefetch: ::std::option::Option<
+        unsafe extern "C" fn(
+            inClipID: PrClipID,
+            inMediaTime: PrTime,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+}
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct PrSDKVideoSegmentSuite {

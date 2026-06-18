@@ -28,6 +28,7 @@ pub mod suites {
     pub(crate) mod time;                     pub use time                ::TimeSuite               as Time;
     pub(crate) mod sequence_info;            pub use sequence_info       ::SequenceInfoSuite       as SequenceInfo;
     pub(crate) mod video_segment;            pub use video_segment       ::VideoSegmentSuite       as VideoSegment;
+    pub(crate) mod video_segment_render;     pub use video_segment_render::VideoSegmentRenderSuite as VideoSegmentRender;
     pub(crate) mod string;                   pub use string              ::PrStringSuite           as PrString;
     pub(crate) mod window;                   pub use window              ::WindowSuite             as Window;
     pub(crate) mod video_segment_properties;
@@ -49,6 +50,7 @@ pub mod utils {
 pub use suites::string::PrString;
 pub use suites::video_segment_properties::*;
 pub use suites::video_segment::VideoSegmentProperties;
+pub use suites::video_segment_render::{RenderContext, RenderIntent, BypassEffects, ClipFrameDescriptor as RenderClipFrameDescriptor};
 pub use suites::ppix::YUV420PlanarBuffers;
 pub use suites::sequence_info::ImmersiveVideoVRConfiguration;
 pub use pf_suites::background_frame::TransferMode;

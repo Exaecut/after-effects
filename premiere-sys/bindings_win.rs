@@ -341,6 +341,11 @@ pub const kVideoSegmentProperty_Adjustment_AdjustmentMediaIsOpaque: &[u8; 40] =
     b"AdjustmentNode::AdjustmentMediaIsOpaque\0";
 pub const kVideoSegmentProperty_Adjustment_InvertAlpha: &[u8; 28] =
     b"AdjustmentNode::InvertAlpha\0";
+pub const kPrSDKVideoSegmentRenderSuite: &[u8; 37] = b"MediaCore Video Segment Render Suite\0";
+pub const kPrSDKVideoSegmentRenderSuiteVersion5: u32 = 5;
+pub const kPrSDKVideoSegmentRenderSuiteVersion6: u32 = 6;
+pub const kPrSDKVideoSegmentRenderSuiteVersion7: u32 = 7;
+pub const kPrSDKVideoSegmentRenderSuiteVersion: u32 = 7;
 pub const kPrSDKVideoSegmentSuite: &[u8; 30] = b"MediaCore Video Segment Suite\0";
 pub const kPrSDKVideoSegmentSuiteVersion4: u32 = 4;
 pub const kPrSDKVideoSegmentSuiteVersion5: u32 = 5;
@@ -2316,6 +2321,26 @@ pub struct PrSDKPPix2Suite {
         unsafe extern "C" fn(inPPixHand: PPixHand, outFieldType: *mut prFieldType) -> prSuiteError,
     >,
 }
+pub const imRenderIntent_imRenderIntent_Unknown: imRenderIntent = -1;
+pub const imRenderIntent_imRenderIntent_Export: imRenderIntent = 0;
+pub const imRenderIntent_imRenderIntent_Stopped: imRenderIntent = 1;
+pub const imRenderIntent_imRenderIntent_Scrubbing: imRenderIntent = 2;
+pub const imRenderIntent_imRenderIntent_Preroll: imRenderIntent = 3;
+pub const imRenderIntent_imRenderIntent_Playing: imRenderIntent = 4;
+pub const imRenderIntent_imRenderIntent_SpeculativePrefetch: imRenderIntent = 5;
+pub const imRenderIntent_imRenderIntent_Thumbnail: imRenderIntent = 6;
+pub const imRenderIntent_imRenderIntent_Analysis: imRenderIntent = 7;
+pub const imRenderIntent_imRenderIntent_ExportPreview: imRenderIntent = 8;
+pub const imRenderIntent_imRenderIntent_ExportProxies: imRenderIntent = 9;
+pub const imRenderIntent_imRenderIntent_DistantPrefetch: imRenderIntent = 10;
+pub type imRenderIntent = ::std::os::raw::c_int;
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
+pub struct imRenderContext {
+    pub inIntent: imRenderIntent,
+    pub inPlaybackRatio: f64,
+    pub inPlaybackRate: f64,
+}
 #[doc = "\tThis struct defines a specific frame format that is being requested\n\tfromt the importer. Any member can be 0, which means that any value\n\tis an acceptable match. For instance, the host might ask for a specific\n\twidth and height, but pass 0 as the pixel format, meaning it can accept\n\tany pixel format."]
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
@@ -2323,6 +2348,17 @@ pub struct imFrameFormat {
     pub inFrameWidth: csSDK_int32,
     pub inFrameHeight: csSDK_int32,
     pub inPixelFormat: PrPixelFormat,
+}
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
+pub struct ClipFrameDescriptor {
+    pub inPixelFormat: PrPixelFormat,
+    pub inWidth: csSDK_int32,
+    pub inHeight: csSDK_int32,
+    pub inPixelAspectRatioNumerator: csSDK_int32,
+    pub inPixelAspectRatioDenominator: csSDK_int32,
+    pub inFieldType: prFieldType,
+    pub inQuality: PrRenderQuality,
 }
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
@@ -3230,6 +3266,433 @@ pub struct PrSDKThreadedWorkSuiteVersion3 {
             inCallback: ThreadedWorkCallbackVersion3,
             inInstanceData: *mut ::std::os::raw::c_void,
             outRegistrationData: *mut ThreadedWorkRegistration,
+        ) -> prSuiteError,
+    >,
+}
+pub type PrSDKVideoSegmentAsyncRenderCompletionProc = ::std::option::Option<
+    unsafe extern "C" fn(
+        inRenderedFrame: PPixHand,
+        inCompletionData: csSDK_int64,
+        inResult: prSuiteError,
+    ),
+>;
+#[repr(C, packed)]
+#[derive(Copy, Clone)]
+pub struct PrSDKVideoSegmentRenderSuite {
+    #[doc = " For a given node, in a given timeline, render the frame that that node would normally produce, given an overriding frame rect.\n For any of the overrides, you can pass zero, implying that you don't want to override at all. This is useful when rendering the inputs to a MulticamNode\n Note that the resulting frame may not match any of your requested pixel formats.\n\n @param inTimelineID - the timeline identifier provided by the host\n @param inNodeID - the node you would like to render. Effect nodes are not suitable for this call, but all other node types will work fine.\n\t\t\t\t\t\tIn general, inputs will work, operators will not.\n @param inSequenceTime - the time you want rendered, in the containing timeline. This is used for filters that request other media during their render\n @param inSegmentTime - the time you want rendered, relative to the node's concept of time, not the containing timeline.\n @param inFrameRateScale - the frame rate you want rendered. In general, this should be the framerate of the timeline, but any can be provided.\n @param inFrameRateSampleSize - see above.\n @param inSequenceWidth - the overridden sequence width\n @param inSequenceHeight - the overridden sequence height\n @param inSequencePixelAspectRatioNumerator - the overridden sequence PAR\n @param inSequencePixelAspectRatioDenominator - the overridden sequence PAR\n @param inRenderParams - the same set of render params used in the SequenceRenderSuite. The option to composite on black is ignored.\n @param inCompletionProc - the callback that will be called when the render is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub ProduceFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tA matching function for ProduceFrameAsync. This allows you to check the cache for this frame\n\tprior to requesting it to be rendered."]
+    pub GetIdentifierForProduceFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    #[doc = " For a given operator, in a given timeline, with a provided input frame, render the effect asynchronously.\n For any of the overrides, you can pass zero, implying that you don't want to override at all. This is useful when rendering the inputs to a MulticamNode\n Note that the resulting frame may not match any of your requested pixel formats.\n\n @param inTimelineID - the timeline identifier provided by the host\n @param inClipNodeID - the Clip that contains the operator you want to render\n @param inOperatorStartIndex - the zero-based index of the operator you want to start rendering at\n @param inOperatorCount - the number of operators you want to apply\n @param inSequenceTime - the time you want rendered, in the containing timeline. This is used for filters that request other media during their render\n @param inSegmentTime - the time you want rendered, relative to the node's concept of time, not the containing timeline.\n @param inFrameRateScale - the frame rate you want rendered. In general, this should be the framerate of the timeline, but any can be provided.\n @param inFrameRateSampleSize - see above.\n @param inSequenceWidth - the overridden sequence width\n @param inSequenceHeight - the overridden sequence height\n @param inSequencePixelAspectRatioNumerator - the overridden sequence PAR\n @param inSequencePixelAspectRatioDenominator - the overridden sequence PAR\n @param inInputFrame - can be NULL if inOperatorStartIndex is 0, implies that you want the host to provide the clip node's input frame\n @param inRenderParams - the same set of render params used in the SequenceRenderSuite. The option to composite on black is ignored.\n @param inCompletionProc - the callback that will be called when the render is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub ApplyOperatorsToFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tA matching function for ApplyOperatorsToFrameAsync. This allows you to check the cache for this frame\n\tprior to requesting it to be rendered."]
+    pub GetIdentifierForApplyOperatorsToFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    #[doc = " For a given transition, in a given timeline, with two (optional) provided input frames, render the transition.\n Note that the resulting frame may not match any of your requested pixel formats.\n\n @param inTimelineID - the timeline identifier provided by the host\n @param inTransitionNodeID - Only transition nodes are acceptable here.\n @param inSequenceTime - the time you want rendered, in the containing timeline. This is used for filters that request other media during their render\n @param inSegmentTime - the time you want rendered, relative to the node's concept of time, not the containing timeline.\n @param inFrameRateScale - the frame rate you want rendered. In general, this should be the framerate of the timeline, but any can be provided.\n @param inFrameRateSampleSize - see above.\n @param inOutgoingInputFrame  - if the PPixHand is NULL, then transparent black will be used\n @param inIncomingInputFrame - if the PPixHand is NULL, then transparent black will be used\n @param inRenderParams - the same set of render params used in the SequenceRenderSuite. The option to composite on black is ignored.\n @param inCompletionProc - the callback that will be called when the render is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub ApplyTransitionToFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inTransitionNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inOutgoingInputFrame: PPixHand,
+            inIncomingInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tA matching function for ApplyOperatorsToFrameAsync. This allows you to check the cache for this frame\n\tprior to requesting it to be rendered."]
+    pub GetIdentifierForApplyTransitionToFrameAsync: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inTransitionNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inOutgoingInputFrame: PPixHand,
+            inIncomingInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    #[doc = " For a given clip (the ClipID is a property of a media node, if applicable), determine the best possible match for a given frame descriptor\n\n @param inClipID - a clip ID retrieved from a media node\n @param inClipTime - it's possible for a source to vary it's answer over time\n @param inDesiredClipFrameDescriptor - the size, par, quality and pixel format you're looking for. You can leave the size or par at 0 if you just want the native size returned.\n @param outBestFrameDescriptor - the closest match available. It might not be all that close a match, but it's what we can get from the importer/source"]
+    pub SelectClipFrameDescriptor: ::std::option::Option<
+        unsafe extern "C" fn(
+            inClipID: PrClipID,
+            inClipTime: PrTime,
+            inDesiredClipFrameDescriptor: *const ClipFrameDescriptor,
+            outBestFrameDescriptor: *mut ClipFrameDescriptor,
+        ) -> prSuiteError,
+    >,
+    #[doc = " For a given clip, at a given time, start a prefetch.\n\n @param inClipID - a clip ID retrieved from a media node\n @param inRequestedFrameDescriptor - a frame descriptor which was returned from a call to SelectClipFrameDescriptor\n @param inMediaTime - the time, in the media space, that you wish to request\n @param inCompletionProc - the callback that will be called when the prefetch is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub InitiateClipPrefetch: ::std::option::Option<
+        unsafe extern "C" fn(
+            inClipID: PrClipID,
+            inRequestedFrameDescriptor: *const ClipFrameDescriptor,
+            inMediaTime: PrTime,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tA matching function for InitiateClipPrefetch. This allows you to check the cache for this frame\n\tprior to requesting it to be rendered."]
+    pub GetIdentifierForInitiateClipPrefetch: ::std::option::Option<
+        unsafe extern "C" fn(
+            inClipID: PrClipID,
+            inRequestedFrameDescriptor: *const ClipFrameDescriptor,
+            inMediaTime: PrTime,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    pub CancelAsyncRequest:
+        ::std::option::Option<unsafe extern "C" fn(inRequestID: csSDK_int32) -> prSuiteError>,
+    pub SupportsInitiateClipPrefetch: ::std::option::Option<
+        unsafe extern "C" fn(inClipID: PrClipID, outSupported: *mut prBool) -> prSuiteError,
+    >,
+    #[doc = " For a given node, in a given timeline, render the frame that that node would normally produce, given an overriding frame rect.\n For any of the overrides, you can pass zero, implying that you don't want to override at all. This is useful when rendering the inputs to a MulticamNode\n Note that the resulting frame may not match any of your requested pixel formats.\n\n @param inTimelineID - the timeline identifier provided by the host\n @param inNodeID - the node you would like to render. Effect nodes are not suitable for this call, but all other node types will work fine.\n\t\t\t\t\t\tIn general, inputs will work, operators will not.\n @param inSequenceTime - the time you want rendered, in the containing timeline. This is used for filters that request other media during their render\n @param inSegmentTime - the time you want rendered, relative to the node's concept of time, not the containing timeline.\n @param inFrameRateScale - the frame rate you want rendered. In general, this should be the framerate of the timeline, but any can be provided.\n @param inFrameRateSampleSize - see above.\n @param inSequenceWidth - the overridden sequence width\n @param inSequenceHeight - the overridden sequence height\n @param inSequencePixelAspectRatioNumerator - the overridden sequence PAR\n @param inSequencePixelAspectRatioDenominator - the overridden sequence PAR\n @param inRenderParams - the same set of render params used in the SequenceRenderSuite. The option to composite on black is ignored.\n @param inRenderContext - the context in which the render is occurring\n @param inCompletionProc - the callback that will be called when the render is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub ProduceFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = " For a given clip, at a given time, start a prefetch.\n\n @param inClipID - a clip ID retrieved from a media node\n @param inRequestedFrameDescriptor - a frame descriptor which was returned from a call to SelectClipFrameDescriptor\n @param inMediaTime - the time, in the media space, that you wish to request\n @param inRenderContext - the context in which the render is occurring\n @param inCompletionProc - the callback that will be called when the prefetch is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub InitiateClipPrefetch2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inClipID: PrClipID,
+            inRequestedFrameDescriptor: *const ClipFrameDescriptor,
+            inMediaTime: PrTime,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = " For a given operator, in a given timeline, with a provided input frame, render the effect asynchronously.\n For any of the overrides, you can pass zero, implying that you don't want to override at all. This is useful when rendering the inputs to a MulticamNode\n Note that the resulting frame may not match any of your requested pixel formats.\n\n @param inTimelineID - the timeline identifier provided by the host\n @param inClipNodeID - the Clip that contains the operator you want to render\n @param inOperatorStartIndex - the zero-based index of the operator you want to start rendering at\n @param inOperatorCount - the number of operators you want to apply\n @param inSequenceTime - the time you want rendered, in the containing timeline. This is used for filters that request other media during their render\n @param inSegmentTime - the time you want rendered, relative to the node's concept of time, not the containing timeline.\n @param inFrameRateScale - the frame rate you want rendered. In general, this should be the framerate of the timeline, but any can be provided.\n @param inFrameRateSampleSize - see above.\n @param inSequenceWidth - the overridden sequence width\n @param inSequenceHeight - the overridden sequence height\n @param inSequencePixelAspectRatioNumerator - the overridden sequence PAR\n @param inSequencePixelAspectRatioDenominator - the overridden sequence PAR\n @param inInputFrame - can be NULL if inOperatorStartIndex is 0, implies that you want the host to provide the clip node's input frame\n @param inRenderParams - the same set of render params used in the SequenceRenderSuite. The option to composite on black is ignored.\n @param inRenderContext - the context in which the render is occurring\n @param inCompletionProc - the callback that will be called when the render is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub ApplyOperatorsToFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = " For a given node, in a given timeline, render the frame that that node would normally produce, given an overriding frame rect.\n For any of the overrides, you can pass zero, implying that you don't want to override at all. This is useful when rendering the inputs to a MulticamNode\n Note that the resulting frame may not match any of your requested pixel formats.\n\n @param inTimelineID - the timeline identifier provided by the host\n @param inNodeID - the node you would like to render. Effect nodes are not suitable for this call, but all other node types will work fine.\n\t\t\t\t\t\tIn general, inputs will work, operators will not.\n @param inSequenceTime - the time you want rendered, in the containing timeline. This is used for filters that request other media during their render\n @param inSegmentTime - the time you want rendered, relative to the node's concept of time, not the containing timeline.\n @param inFrameRateScale - the frame rate you want rendered. In general, this should be the framerate of the timeline, but any can be provided.\n @param inFrameRateSampleSize - see above.\n @param inSequenceWidth - the overridden sequence width\n @param inSequenceHeight - the overridden sequence height\n @param inSequencePixelAspectRatioNumerator - the overridden sequence PAR\n @param inSequencePixelAspectRatioDenominator - the overridden sequence PAR\n @param inRenderParams - the same set of render params used in the SequenceRenderSuite. The option to composite on black is ignored.\n @param inRenderContext - the context in which the render is occurring\n @param inCompletionProc - the callback that will be called when the render is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param inBypassEffects - if true, skip non-intrinsic video effects while rendering\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub ProduceFrameAsync3: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tA matching function for ProduceFrameAsync. This allows you to check the cache for this frame\n\tprior to requesting it to be rendered."]
+    pub GetIdentifierForProduceFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inBypassEffects: prBool,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    #[doc = " For a given operator, in a given timeline, with a provided input frame, render the effect asynchronously.\n For any of the overrides, you can pass zero, implying that you don't want to override at all. This is useful when rendering the inputs to a MulticamNode\n Note that the resulting frame may not match any of your requested pixel formats.\n\n @param inTimelineID - the timeline identifier provided by the host\n @param inClipNodeID - the Clip that contains the operator you want to render\n @param inOperatorStartIndex - the zero-based index of the operator you want to start rendering at\n @param inOperatorCount - the number of operators you want to apply\n @param inSequenceTime - the time you want rendered, in the containing timeline. This is used for filters that request other media during their render\n @param inSegmentTime - the time you want rendered, relative to the node's concept of time, not the containing timeline.\n @param inFrameRateScale - the frame rate you want rendered. In general, this should be the framerate of the timeline, but any can be provided.\n @param inFrameRateSampleSize - see above.\n @param inSequenceWidth - the overridden sequence width\n @param inSequenceHeight - the overridden sequence height\n @param inSequencePixelAspectRatioNumerator - the overridden sequence PAR\n @param inSequencePixelAspectRatioDenominator - the overridden sequence PAR\n @param inInputFrame - can be NULL if inOperatorStartIndex is 0, implies that you want the host to provide the clip node's input frame\n @param inRenderParams - the same set of render params used in the SequenceRenderSuite. The option to composite on black is ignored.\n @param inRenderContext - the context in which the render is occurring\n @param inCompletionProc - the callback that will be called when the render is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param inBypassEffects - if true, skip non-intrinsic video effects while rendering\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub ApplyOperatorsToFrameAsync3: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tA matching function for ApplyOperatorsToFrameAsync. This allows you to check the cache for this frame\n\tprior to requesting it to be rendered."]
+    pub GetIdentifierForApplyOperatorsToFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inBypassEffects: prBool,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    #[doc = " For a given transition, in a given timeline, with two (optional) provided input frames, render the transition.\n Note that the resulting frame may not match any of your requested pixel formats.\n\n @param inTimelineID - the timeline identifier provided by the host\n @param inTransitionNodeID - Only transition nodes are acceptable here.\n @param inSequenceTime - the time you want rendered, in the containing timeline. This is used for filters that request other media during their render\n @param inSegmentTime - the time you want rendered, relative to the node's concept of time, not the containing timeline.\n @param inFrameRateScale - the frame rate you want rendered. In general, this should be the framerate of the timeline, but any can be provided.\n @param inFrameRateSampleSize - see above.\n @param inOutgoingInputFrame  - if the PPixHand is NULL, then transparent black will be used\n @param inIncomingInputFrame - if the PPixHand is NULL, then transparent black will be used\n @param inRenderParams - the same set of render params used in the SequenceRenderSuite. The option to composite on black is ignored.\n @param inCompletionProc - the callback that will be called when the render is complete.\n @param inAsyncCompletionData - an extra param that will be provided to the completion routine.\n @param inBypassEffects - if true, skip non-intrinsic video effects while rendering\n @param outRequestID - an identifier that can be used to cancel this request. It isn't really useful for anything else since your\n\t\t\t\t\t\tcompletion routine can be called before this one returns."]
+    pub ApplyTransitionToFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inTransitionNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inOutgoingInputFrame: PPixHand,
+            inIncomingInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRec,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = " Color managed version of ProduceFrameAsync3\n same params except that we pass SequenceRender_ParamsRecExt that includes\n opaque id for the color space"]
+    pub ProduceColorManagedFrameAsync4: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            inRenderCaptioningStreamFormat: PrRenderCaptionStreamFormat,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tA matching function for ProduceColorManagedFrameAsync4.\n\tThis allows you to check the cache for this frame\n\tprior to requesting it to be rendered."]
+    pub GetIdentifierForProduceColorManagedFrameAsync3: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inBypassEffects: prBool,
+            inRenderCaptionStreamFormat: PrRenderCaptionStreamFormat,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    #[doc = " Color managed version of ApplyOperatorsToFrameAsync3\n Note that we pass SequenceRencer_ParamsRecExt"]
+    pub ApplyOperatorsToColorManagedFrameAsync4: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            inRenderCaptionStreamFormat: PrRenderCaptionStreamFormat,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tA matching function for ApplyOperatorsToColorManagedFrameAsync4.\n\tThis allows you to check the cache for this frame\n\tprior to requesting it to be rendered."]
+    pub GetIdentifierForApplyOperatorsToColorManagedFrameAsync3: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inClipNodeID: csSDK_int32,
+            inOperatorStartIndex: csSDK_int32,
+            inOperatorCount: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inSequenceWidth: csSDK_int32,
+            inSequenceHeight: csSDK_int32,
+            inSequencePixelAspectRatioNumerator: csSDK_int32,
+            inSequencePixelAspectRatioDenominator: csSDK_int32,
+            inInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inBypassEffects: prBool,
+            inRenderCaptionStreamFormat: PrRenderCaptionStreamFormat,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tColor managed version of ApplyTransitionToFrameAsync2\n\tNote that we pass SequenceRencer_ParamsRecExt"]
+    pub ApplyTransitionToColorManagedFrameAsync3: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inTransitionNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inOutgoingInputFrame: PPixHand,
+            inIncomingInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            inBypassEffects: prBool,
+            inRenderCaptionStreamFormat: PrRenderCaptionStreamFormat,
+            outRequestID: *mut csSDK_int32,
+        ) -> prSuiteError,
+    >,
+    #[doc = "\tA matching function for ApplyTransitionToColorManagedFrameAsync3.\n\tThis allows you to check the cache for this frame\n\tprior to requesting it to be rendered."]
+    pub GetIdentifierForApplyTransitionToColorManagedFrameAsync2: ::std::option::Option<
+        unsafe extern "C" fn(
+            inTimelineID: PrTimelineID,
+            inTransitionNodeID: csSDK_int32,
+            inSequenceTime: PrTime,
+            inSegmentTime: PrTime,
+            inSequenceTicksPerFrame: PrTime,
+            inOutgoingInputFrame: PPixHand,
+            inIncomingInputFrame: PPixHand,
+            inRenderParams: *const SequenceRender_ParamsRecExt,
+            inRenderCaptionStreamFormat: PrRenderCaptionStreamFormat,
+            outIdentifier: *mut prPluginID,
+        ) -> prSuiteError,
+    >,
+    #[doc = " Initiates the Distant Prefetching\n\n"]
+    pub InitiateDistantPrefetch: ::std::option::Option<
+        unsafe extern "C" fn(
+            inClipID: PrClipID,
+            inMediaTime: PrTime,
+            inRenderContext: imRenderContext,
+            inCompletionProc: PrSDKVideoSegmentAsyncRenderCompletionProc,
+            inAsyncCompletionData: csSDK_int64,
+            outRequestID: *mut csSDK_int32,
         ) -> prSuiteError,
     >,
 }
@@ -7221,21 +7684,21 @@ pub struct OpaqueEffectDataType {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct PrSDKOpaqueEffectDataSuite {
-    #[doc = "Acquire pointer to opaque effect data.  This is reference counted meaning that\n  AcquireOpaqueEffectData and ReleaseOpaqueEffectData should always be called in pairs.\n  If no opaque effect was registered for the given effect_ref AcquireOpaqueEffectData\n  will return 0 and the reference count remains 0."]
+    #[doc = "\tAcquire pointer to opaque effect data.  This is reference counted meaning that\n  AcquireOpaqueEffectData and ReleaseOpaqueEffectData should always be called in pairs.\n  If no opaque effect was registered for the given effect_ref AcquireOpaqueEffectData\n  will return 0 and the reference count remains 0."]
     pub AcquireOpaqueEffectData: ::std::option::Option<
         unsafe extern "C" fn(
             instanceID: csSDK_int32,
             outOpaqueEffectDataPP: *mut *mut OpaqueEffectDataType,
         ) -> PF_Err,
     >,
-    #[doc = "Register opaque effect data.  If multiple threads invoke RegisterOpaqueEffectData\n  only one will be successful.  The ioOpaqueEffectDataPP of the successful thread\n  will be returned to all callers.  Calling threads are always responsible for\n  managing the data they register.  This is the case whether or not threads are\n  successful registering their data.\n  Similarly, RegisterOpaqueEffectData always increments the internal reference count.\n\n//\n// Sample code showing how to use RegisterOpaqueEffectData.\n// Note: code is simplified (not exception-safe, etc.)\n//\n\n//\n// Try to acquire first, in case another thread registered the opaque effect data earlier\n//\nOpaqueEffectDataType * pData = 0;\nPF_Err err = opaqueEffectDataSuite->AcquireOpaqueEffectData(instanceID, &pData);\nassert(err == PF_Err_NONE);\n\n//\n// If acquire did not return a valid pointer, create a new object and register it\n// otherwise we are done\n//\nif (pData == 0)\n{\nOpaqueEffectDataType * pNewData(new OpaqueEffectDataType());\npData = pNewData;\nerr = opaqueEffectDataSuite->RegisterOpaqueEffectData(instanceID, &pData);\nassert(err == PF_Err_NONE);\n\n// now we check if this thread actually succeeded registering\n// if the returned pData is unchanged it means that it was successful\nif (pData != pNewData)\n{\ndelete pNewData;\n}\n}\n\n// pData now points to the right OpaqueEffectDataType object and we can start using it\n...\n\n\n\n"]
+    #[doc = "\tRegister opaque effect data.  If multiple threads invoke RegisterOpaqueEffectData\n  only one will be successful.  The ioOpaqueEffectDataPP of the successful thread\n  will be returned to all callers.  Calling threads are always responsible for\n  managing the data they register.  This is the case whether or not threads are\n  successful registering their data.\n  Similarly, RegisterOpaqueEffectData always increments the internal reference count.\n\n//\n// Sample code showing how to use RegisterOpaqueEffectData.\n// Note: code is simplified (not exception-safe, etc.)\n//\n\n//\n// Try to acquire first, in case another thread registered the opaque effect data earlier\n//\nOpaqueEffectDataType * pData = 0;\nPF_Err err = opaqueEffectDataSuite->AcquireOpaqueEffectData(instanceID, &pData);\nassert(err == PF_Err_NONE);\n\n//\n// If acquire did not return a valid pointer, create a new object and register it\n// otherwise we are done\n//\nif (pData == 0)\n{\nOpaqueEffectDataType * pNewData(new OpaqueEffectDataType());\npData = pNewData;\nerr = opaqueEffectDataSuite->RegisterOpaqueEffectData(instanceID, &pData);\nassert(err == PF_Err_NONE);\n\n// now we check if this thread actually succeeded registering\n// if the returned pData is unchanged it means that it was successful\nif (pData != pNewData)\n{\ndelete pNewData;\n}\n}\n\n// pData now points to the right OpaqueEffectDataType object and we can start using it\n...\n\n\n\n"]
     pub RegisterOpaqueEffectData: ::std::option::Option<
         unsafe extern "C" fn(
             instanceID: csSDK_int32,
             ioOpaqueEffectDataPP: *mut *mut OpaqueEffectDataType,
         ) -> PF_Err,
     >,
-    #[doc = "Release opaque effect data.  This decrements the internal reference count.\n  If the internal reference count goes to 0 outDisposeOpaqueEffectDataPP is set\n  to the managed data that should be deleted, otherwise it is set to NULL.\n  If the internal reference count goes to 0 any calls made to AcquireOpaqueEffectData\n  will return 0 until new opaque effect data is registered via RegisterOpaqueEffectData."]
+    #[doc = "\tRelease opaque effect data.  This decrements the internal reference count.\n  If the internal reference count goes to 0 outDisposeOpaqueEffectDataPP is set\n  to the managed data that should be deleted, otherwise it is set to NULL.\n  If the internal reference count goes to 0 any calls made to AcquireOpaqueEffectData\n  will return 0 until new opaque effect data is registered via RegisterOpaqueEffectData."]
     pub ReleaseOpaqueEffectData: ::std::option::Option<
         unsafe extern "C" fn(
             instanceID: csSDK_int32,

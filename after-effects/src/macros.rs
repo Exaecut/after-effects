@@ -483,6 +483,20 @@ macro_rules! define_enum {
                 }
             }
         }
+        impl $name {
+            /// Non-panicking conversion from the raw repr. Returns `None` for
+            /// values this enum doesn't model — e.g. host commands the bindings
+            /// don't cover — so callers can no-op instead of crashing the host.
+            #[allow(dead_code)]
+            pub fn try_from_raw(v: $raw_type) -> Option<Self> {
+                match v as _ {
+                    $(
+                        $value => Some(Self::$variant),
+                    )*
+                    _ => None,
+                }
+            }
+        }
     };
 }
 

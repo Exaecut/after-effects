@@ -238,6 +238,12 @@ pub enum Command {
     /// }
     /// ```
     GpuDeviceSetdown { extra: GpuDeviceSetdownExtra },
+    /// A host command these bindings don't model — carries the raw `PF_Cmd`
+    /// selector. Forward-compatibility for newer or host-specific selectors:
+    /// instead of panicking on an unrecognized value, the entry point hands it
+    /// to [`AdobePluginGlobal::handle_command`] as `Other`. The bindings do no
+    /// lifecycle bookkeeping for it; the plug-in decides whether/how to respond.
+    Other(i32),
 }
 
 impl Command {
@@ -341,6 +347,7 @@ impl Command {
             Command::SmartRenderGpu           { .. } => ae_sys::PF_Cmd_SMART_RENDER_GPU,
             Command::GpuDeviceSetup           { .. } => ae_sys::PF_Cmd_GPU_DEVICE_SETUP,
             Command::GpuDeviceSetdown         { .. } => ae_sys::PF_Cmd_GPU_DEVICE_SETDOWN,
+            Command::Other(raw)                      => *raw as _,
         }) as ae_sys::PF_Cmd
     }
 }

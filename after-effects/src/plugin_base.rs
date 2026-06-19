@@ -231,7 +231,36 @@ macro_rules! define_effect {
                 None
             };
 
-            let cmd = RawCommand::from(cmd);
+            // Forward-compat: the host may send selectors these bindings don't
+            // model. Don't panic — restore the plug-in instance, hand it the raw
+            // selector via `Command::Other` so it can choose to respond, and skip
+            // the lifecycle bookkeeping we can't classify for an unknown command.
+            let cmd = match RawCommand::try_from_raw(cmd) {
+                Some(c) => c,
+                None => {
+                    if unsafe { (*in_data_ptr).global_data.is_null() } {
+                        return Ok(());
+                    }
+                    let mut global_handle = pf::Handle::<GlobalData>::from_raw(unsafe { (*in_data_ptr).global_data }, false)?;
+                    let mut global_lock = global_handle.lock()?;
+                    let global_inst = global_lock.as_ref_mut()?;
+                    let params_slice = if params.is_null() || global_inst.params_num == 0 {
+                        &[]
+                    } else {
+                        unsafe { std::slice::from_raw_parts(params, global_inst.params_num) }
+                    };
+                    let mut params_state = Parameters::<$params_type>::with_params(in_data_ptr, params_slice, global_inst.params_map.get(), global_inst.params_num);
+                    let result = global_inst.plugin_instance.handle_command(
+                        Command::Other(cmd as i32),
+                        InData::from_raw(in_data_ptr),
+                        OutData::from_raw(out_data_ptr),
+                        &mut params_state,
+                    );
+                    drop(params_state);
+                    drop(global_lock);
+                    return result;
+                }
+            };
 
             // Allocate or restore global data pointer
             let mut global_handle = if cmd == RawCommand::GlobalSetup {

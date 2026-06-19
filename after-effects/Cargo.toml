@@ -1,6 +1,6 @@
 [package]
 name = "exaecut-after-effects"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
     "Adrian Eddy <adrian.eddy@gmail.com>",
     "Moritz Moeller <virtualritz@protonmail.com>",
@@ -29,7 +29,7 @@ default = []
 # `path = "../after-effects-sys"` lets the local workspace build the sibling
 # before it's been published. We rename via `package = ` so that the existing
 # `use after_effects_sys::...` paths inside this crate's source stay unchanged.
-after-effects-sys = { version = "0.5", package = "exaecut-after-effects-sys", path = "../after-effects-sys" }
+after-effects-sys = { version = "0.6", package = "exaecut-after-effects-sys", path = "../after-effects-sys" }
 bincode = { version = "2.0", features = ["serde"] }
 bitflags = "2.11"
 cstr-literal = "0.1"

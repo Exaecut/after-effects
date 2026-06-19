@@ -1,6 +1,6 @@
 [package]
 name = "exaecut-after-effects-sys"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
     "Adrian Eddy <adrian.eddy@gmail.com>",
     "Moritz Moeller <virtualritz@protonmail.com>",
